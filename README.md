@@ -1,5 +1,5 @@
 # Custom HTTP Server
-A basic HTTP server built from scratch using Node.js and TypeScript.
+A basic HTTP server built using Node.js and TypeScript.
 
 ## Features
 - Static file serving

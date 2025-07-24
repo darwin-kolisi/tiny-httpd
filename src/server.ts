@@ -6,31 +6,44 @@ function handleConnection(socket: net.Socket): void {
 	
 	socket.on('data', (data) => {
 		requestData += data.toString('utf-8');
-		console.log('Raw request data:', JSON.stringify(requestData));
+		console.log('Raw request data:\n', requestData);
 		
 		if (requestData.includes('\r\n\r\n')) {
 			const firstLine = requestData.split('\r\n')[0];
 			const resourcePath = firstLine.split(' ')[1];
 			
-			let filePath = `htdocs${resourcePath}`;
-			if (resourcePath.endsWith('/')) {
-				filePath += 'index.html';
-			}
+			const routes: { [key: string]: string } = {
+				'/': 'htdocs/index.html',
+				'/about': 'htdocs/about.html',
+			};
 			
-			if (fs.existsSync(filePath)) {
-				const fileContents = fs.readFileSync(filePath);
-				const statusLine = 'HTTP/1.1 200 OK\r\n\r\n';
-				socket.write(statusLine);
-				socket.write(fileContents);
-				socket.end();
-				console.log(`Served file: ${filePath}`);
-			} else {
-				const response = 'HTTP/1.1 404 Not Found\r\n\r\nFile Not Found';
-				socket.write(response);
-				socket.end();
-				console.log(`File not found: ${filePath}`);
-			}
+			const filePath = routes[resourcePath] || `htdocs${resourcePath}`;
+			console.log('Serving file:', filePath);
+			
+			fs.access(filePath, fs.constants.F_OK, (err) => {
+				if (err) {
+					socket.write('HTTP/1.1 404 Not Found\r\n\r\nFile not found');
+					socket.end();
+					return;
+				}
+				
+				fs.readFile(filePath, (err, fileContent) => {
+					if (err) {
+						socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\nFailed to read file');
+						socket.end();
+						return;
+					}
+					
+					socket.write('HTTP/1.1 200 OK\r\n\r\n');
+					socket.write(fileContent);
+					socket.end();
+				});
+			});
 		}
+	});
+	
+	socket.on('error', (err) => {
+		console.error('Socket error:', err.message);
 	});
 	
 	socket.on('close', () => {
